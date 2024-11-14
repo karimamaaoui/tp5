@@ -1,8 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:tp5/auth/Welcome.dart';
 import 'package:tp5/auth/register_screen.dart';
-
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -12,31 +13,31 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
-
-
   bool isVisible = false;
   bool isLoginTrue = false;
   bool isLoginSuccessful = false;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  bool isUserSignedIn = false;
 
-
-  login() async {
+  Future<void> login() async {
     if (emailController.text.isNotEmpty && passwordController.text.isNotEmpty) {
       try {
-        await _auth
-            .signInWithEmailAndPassword(
-            email: emailController.text, password: passwordController.text);
+        await _auth.signInWithEmailAndPassword(
+          email: emailController.text,
+          password: passwordController.text,
+        );
 
         setState(() {
           isLoginTrue = false;
           isLoginSuccessful = true;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             backgroundColor: Colors.green,
             content: Text(
-              "login successful!",
+              "Login successful!",
               style: TextStyle(fontSize: 18.0),
             ),
           ),
@@ -47,21 +48,23 @@ class _LoginScreenState extends State<LoginScreen> {
           isLoginSuccessful = false;
         });
 
-        if (e.code == 'weak-password') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              backgroundColor: Colors.orangeAccent,
-              content: Text(
-                "Password provided is too weak",
-                style: TextStyle(fontSize: 18.0),
-              ),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: e.code == 'weak-password'
+                ? Colors.orangeAccent
+                : Colors.red,
+            content: Text(
+              e.code == 'weak-password'
+                  ? "Password provided is too weak"
+                  : "An error occurred. Please try again.",
+              style: const TextStyle(fontSize: 18.0),
             ),
-          );
-        }
+          ),
+        );
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           backgroundColor: Colors.red,
           content: Text(
             "Please fill all fields",
@@ -70,8 +73,47 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     }
+  }
 
-     }
+  Future<void> onGoogleSignIn(BuildContext context) async {
+    User? user = await _handleSignIn();
+    if (user != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => WelcomeUserWidget(user, _googleSignIn),
+        ),
+      );
+    }
+  }
+
+  Future<User?> _handleSignIn() async {
+    User? user;
+    bool isSignedIn = await _googleSignIn.isSignedIn();
+
+    if (isSignedIn) {
+      user = _auth.currentUser;
+    } else {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser != null) {
+        final GoogleSignInAuthentication googleAuth =
+        await googleUser.authentication;
+
+        final AuthCredential credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        user = (await _auth.signInWithCredential(credential)).user;
+      }
+    }
+
+    setState(() {
+      isUserSignedIn = user != null;
+    });
+
+    return user;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -80,8 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
         title: const Text("Sign In"),
         backgroundColor: Colors.teal[600],
       ),
-      body:
-      Center(
+      body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Container(
@@ -94,7 +135,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: Colors.grey.withOpacity(0.3),
                   spreadRadius: 5,
                   blurRadius: 7,
-                  offset: Offset(0, 3), // changes position of shadow
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
@@ -102,56 +143,61 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                _header(context),
                 _inputField(context),
-
-                SizedBox(height: 24),
-
-                // Divider with text
+                _signup(context),
+                if (isLoginTrue)
+                  const Text(
+                    "Login failed. Please check your credentials.",
+                    style: TextStyle(color: Colors.red),
+                  ),
+                if (isLoginSuccessful)
+                  const Text(
+                    "Welcome! You have successfully logged in.",
+                    style: TextStyle(color: Colors.green, fontSize: 18),
+                  ),
+                const SizedBox(height: 24),
                 Row(
                   children: [
-                    Expanded(
-                      child: Divider(
-                        color: Colors.grey,
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    Expanded(child: Divider(color: Colors.grey)),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8.0),
                       child: Text(
                         "or continue with",
                         style: TextStyle(color: Colors.grey),
                       ),
                     ),
-                    Expanded(
-                      child: Divider(
-                        color: Colors.grey,
-                      ),
-                    ),
+                    Expanded(child: Divider(color: Colors.grey)),
                   ],
                 ),
-
-                SizedBox(height: 16),
-
-                // Social Media Icons
+                const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     IconButton(
-                      icon: FaIcon(FontAwesomeIcons.facebook, color: Colors.blue),
+                      icon: const FaIcon(
+                        FontAwesomeIcons.facebook,
+                        color: Colors.blue,
+                      ),
                       onPressed: () {
                         // Handle Facebook login
                       },
                     ),
                     IconButton(
-                      icon: FaIcon(FontAwesomeIcons.twitter, color: Colors.lightBlue),
+                      icon: const FaIcon(
+                        FontAwesomeIcons.twitter,
+                        color: Colors.lightBlue,
+                      ),
                       onPressed: () {
                         // Handle Twitter login
                       },
                     ),
                     IconButton(
-                      icon: FaIcon(FontAwesomeIcons.google, color: Colors.red),
-                      onPressed: () {
-                        // Handle Google login
-                      },
+                      icon: const FaIcon(
+                        FontAwesomeIcons.google,
+                        color: Colors.red,
+                      ),
+                      onPressed: () => onGoogleSignIn(context),
                     ),
                   ],
                 ),
@@ -160,27 +206,18 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
-     /* Container(
-        margin: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _header(context),
-            _inputField(context),
-            _signup(context),
-            if (isLoginTrue)
-              const Text(
-                "Login failed. Please check your credentials.",
-                style: TextStyle(color: Colors.red),
-              ),
-            if (isLoginSuccessful)
-              const Text(
-                "Welcome! You have successfully logged in.",
-                style: TextStyle(color: Colors.green, fontSize: 18),
-              ),
-          ],
+    );
+  }
+
+  Widget _header(BuildContext context) {
+    return const Column(
+      children: [
+        Text(
+          "Welcome Back",
+          style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
         ),
-      ),*/
+        Text("Please sign in to your account"),
+      ],
     );
   }
 
@@ -207,6 +244,14 @@ class _LoginScreenState extends State<LoginScreen> {
               borderRadius: BorderRadius.circular(18),
             ),
             prefixIcon: const Icon(Icons.lock),
+            suffixIcon: IconButton(
+              icon: Icon(isVisible ? Icons.visibility : Icons.visibility_off),
+              onPressed: () {
+                setState(() {
+                  isVisible = !isVisible;
+                });
+              },
+            ),
           ),
           obscureText: !isVisible,
         ),
@@ -227,64 +272,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-
-  Widget _header(BuildContext context) {
-    return const Column(
-      children: [
-        Text(
-          "Welcome Back",
-          style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
-        ),
-        Text("Please sign in to your account"),
-      ],
-    );
-  }
-
-
- /* Widget _inputField(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TextField(
-          controller: emailController,
-          decoration: InputDecoration(
-            hintText: "Email",
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(18),
-            ),
-            prefixIcon: const Icon(Icons.email),
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: passwordController,
-          decoration: InputDecoration(
-            hintText: "Password",
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(18),
-            ),
-            prefixIcon: const Icon(Icons.lock),
-          ),
-          obscureText: !isVisible,
-        ),
-        const SizedBox(height: 15),
-        ElevatedButton(
-          onPressed: login,
-          style: ElevatedButton.styleFrom(
-            shape: const StadiumBorder(),
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            backgroundColor: Colors.teal[600],
-          ),
-          child: const Text(
-            "Login",
-            style: TextStyle(fontSize: 20,color: Colors.white),
-          ),
-        ),
-      ],
-    );
-  }
-*/
-
   Widget _signup(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -292,7 +279,10 @@ class _LoginScreenState extends State<LoginScreen> {
         const Text("Don't have an account? ", style: TextStyle(color: Colors.teal)),
         TextButton(
           onPressed: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterScreen())); // Navigate to Sign Up page
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const RegisterScreen()),
+            );
           },
           child: const Text(
             "Sign Up",
@@ -302,8 +292,4 @@ class _LoginScreenState extends State<LoginScreen> {
       ],
     );
   }
-
-
 }
-
-

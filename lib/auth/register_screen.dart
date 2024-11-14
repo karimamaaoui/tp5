@@ -21,6 +21,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool _isLoading = false;
   String? _errorMessage;
+
   Future<void> _registerUser() async {
 
 
@@ -73,6 +74,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
     }
   }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
