@@ -9,85 +9,70 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
 
   bool isVisible = false;
   bool isLoginTrue = false;
   bool isLoginSuccessful = false;
-  FirebaseAuth auth = FirebaseAuth.instance;
-/*
-  register() async {
-    if (emailController.text.isNotEmpty && passwordController.text.isNotEmpty) {
-      try {
-        await auth
-            .createUserWithEmailAndPassword(
-            email: emailController.text, password: passwordController.text);
 
-        setState(() {
-          isLoginTrue = false;
-          isLoginSuccessful = true;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.green,
-            content: Text(
-              "Registration successful!",
-              style: TextStyle(fontSize: 18.0),
-            ),
-          ),
-        );
-      } on FirebaseAuthException catch (e) {
-        setState(() {
-          isLoginTrue = true;
-          isLoginSuccessful = false;
-        });
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-        if (e.code == 'weak-password') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              backgroundColor: Colors.orangeAccent,
-              content: Text(
-                "Password provided is too weak",
-                style: TextStyle(fontSize: 18.0),
-              ),
+  bool _isLoading = false;
+  String? _errorMessage;
+  Future<void> _registerUser() async {
+
+
+    try {
+      await _auth.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      // Show a success dialog
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text("Sign Up Successful"),
+          content: Text("Your account has been created successfully!"),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                Navigator.pop(context); // Navigate back to the login screen
+              },
+              child: Text("OK"),
             ),
-          );
-        } else if (e.code == "email-already-in-use") {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              backgroundColor: Colors.orangeAccent,
-              content: Text(
-                "Account already exists",
-                style: TextStyle(fontSize: 18.0),
-              ),
-            ),
-          );
-        }
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.red,
-          content: Text(
-            "Please fill all fields",
-            style: TextStyle(fontSize: 18.0),
-          ),
+          ],
         ),
       );
+    } catch (error) {
+      print(error);
+      setState(() {
+        _errorMessage = error.toString();
+      });
+
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text("Sign Up Failed"),
+          content: Text("Error: $_errorMessage"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text("OK"),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
-*/
-
-  Future<void> register() async {
-    try {
-      await auth.createUserWithEmailAndPassword(
-          email: emailController.text, password: passwordController.text);
-    } catch (e) {
-      print(e);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -136,7 +121,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TextField(
-          controller: emailController,
+          controller: _emailController,
           decoration: InputDecoration(
             hintText: "Email",
             border: OutlineInputBorder(
@@ -147,7 +132,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         const SizedBox(height: 10),
         TextField(
-          controller: passwordController,
+          controller: _passwordController,
           decoration: InputDecoration(
             hintText: "Password",
             border: OutlineInputBorder(
@@ -159,7 +144,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         const SizedBox(height: 15),
         ElevatedButton(
-          onPressed: register,
+          onPressed:_registerUser ,
           style: ElevatedButton.styleFrom(
             shape: const StadiumBorder(),
             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -186,7 +171,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 context,
                 MaterialPageRoute(
                     builder: (context) =>
-                        const RegisterScreen())); // Navigate to Sign Up page
+                    const RegisterScreen())); // Navigate to Sign Up page
           },
           child: const Text(
             "Sign in",
